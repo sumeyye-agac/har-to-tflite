@@ -5,7 +5,7 @@ paths:
   results_dir: results
 
 dataset:
-  name: uci_har
+  name: synthetic
   force_download: false
   synthetic_fallback: true
   synthetic_samples:

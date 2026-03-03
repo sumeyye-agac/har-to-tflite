@@ -11,22 +11,24 @@ from h2t.constants import DEFAULT_CONFIG_PATH
 from h2t.data.registry import load_dataset
 from h2t.export.tflite_export import export_tflite_variants
 from h2t.logging_utils import setup_logging
+from h2t.reporting.report import write_summary
 from h2t.training.train import train_pipeline
 from h2t.utils.jsonio import write_json
 from h2t.utils.paths import ensure_dir
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="h2t", description="HAR to TFLite pipeline")
-    parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="Path to YAML config")
-    parser.add_argument("--set", action="append", default=[], help="Override key=value (dot paths)")
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="Path to YAML config")
+    common.add_argument("--set", action="append", default=[], help="Override key=value (dot paths)")
+    parser = argparse.ArgumentParser(prog="h2t", description="HAR to TFLite pipeline", parents=[common])
 
     subparsers = parser.add_subparsers(dest="command")
-    subparsers.add_parser("data")
-    subparsers.add_parser("train")
-    subparsers.add_parser("export")
-    subparsers.add_parser("bench-host")
-    android = subparsers.add_parser("bench-android")
+    subparsers.add_parser("data", parents=[common])
+    subparsers.add_parser("train", parents=[common])
+    subparsers.add_parser("export", parents=[common])
+    subparsers.add_parser("bench-host", parents=[common])
+    android = subparsers.add_parser("bench-android", parents=[common])
     android.add_argument("--serial", default=None, help="ADB device serial")
     android.add_argument("--benchmark-bin", default=None, help="Path to benchmark_model binary on host")
     android.add_argument("--threads", type=int, default=None, help="CPU threads")
@@ -35,8 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
     android.add_argument("--cooldown-s", type=float, default=None, help="Cooldown in seconds")
     android.add_argument("--warmup-runs", type=int, default=None, help="Warmup runs")
     android.add_argument("--num-runs", type=int, default=None, help="Benchmark runs per repeat")
-    subparsers.add_parser("report")
-    subparsers.add_parser("run-all")
+    subparsers.add_parser("report", parents=[common])
+    subparsers.add_parser("run-all", parents=[common])
     return parser
 
 
@@ -77,9 +79,10 @@ def main(argv: list[str] | None = None) -> int:
             "num_runs": args.num_runs,
         }
         return _run_bench_android(config, logger, overrides)
-    if command in {"report", "run-all"}:
-        logger.info("Command %s is scaffolded and will be implemented in subsequent milestones.", command)
-        return 0
+    if command == "report":
+        return _run_report(config, logger)
+    if command == "run-all":
+        return _run_all(config, logger)
     return 0
 
 
@@ -132,6 +135,34 @@ def _run_bench_android(config: dict[str, Any], logger, overrides: dict[str, Any]
     train_result = train_pipeline(config, dataset, logger)
     manifest = export_tflite_variants(config, dataset, train_result, logger)
     benchmark_android(config, manifest, logger, cli_overrides=overrides)
+    return 0
+
+
+def _run_report(config: dict[str, Any], logger) -> int:
+    summary_path, leaderboard_path = write_summary(config)
+    logger.info("Saved summary report to %s", summary_path)
+    logger.info("Updated leaderboard at %s", leaderboard_path)
+    return 0
+
+
+def _run_all(config: dict[str, Any], logger) -> int:
+    dataset = _load_data(config, logger)
+    _write_data_summary(config, dataset, logger)
+
+    train_result = train_pipeline(config, dataset, logger)
+    manifest = export_tflite_variants(config, dataset, train_result, logger)
+
+    host_enabled = bool(config.get("bench", {}).get("host", {}).get("enabled", True))
+    if host_enabled:
+        benchmark_host(config, dataset, manifest, logger)
+
+    android_enabled = bool(config.get("bench", {}).get("android", {}).get("enabled", True))
+    if android_enabled:
+        benchmark_android(config, manifest, logger)
+
+    summary_path, leaderboard_path = write_summary(config)
+    logger.info("Saved summary report to %s", summary_path)
+    logger.info("Updated leaderboard at %s", leaderboard_path)
     return 0
 
 
