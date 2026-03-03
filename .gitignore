@@ -13,10 +13,10 @@ build/
 dist/
 *.egg-info/
 
-# Project outputs (generated)
-data/
-artifacts/
-results/
+# Project outputs (generated at repository root)
+/data/
+/artifacts/
+/results/
 
 # OS/editor
 .DS_Store

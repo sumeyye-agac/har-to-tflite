@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 from h2t.config import apply_overrides, deep_merge, load_config
 from h2t.constants import DEFAULT_CONFIG_PATH
+from h2t.data.registry import load_dataset
+from h2t.logging_utils import setup_logging
+from h2t.utils.jsonio import write_json
+from h2t.utils.paths import ensure_dir
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,6 +38,26 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     config = load_runtime_config(args.config, args.set)
-    print(f"Configured command={args.command} seed={config.get('seed')}")
-    print("Pipeline stages will be implemented by subsequent commits.")
+    logger = setup_logging(Path(config["paths"]["results_dir"]) / "run.log")
+    command = args.command
+    if command == "data":
+        return _run_data(config, logger)
+    if command in {"train", "export", "bench-host", "bench-android", "report", "run-all"}:
+        logger.info("Command %s is scaffolded and will be implemented in subsequent milestones.", command)
+        return 0
+    return 0
+
+
+def _run_data(config: dict[str, Any], logger) -> int:
+    artifacts_dir = ensure_dir(config["paths"]["artifacts_dir"])
+    dataset = load_dataset(config, logger)
+    summary = {
+        "source": dataset["source"],
+        "x_train_shape": list(dataset["x_train"].shape),
+        "x_test_shape": list(dataset["x_test"].shape),
+        "num_classes": dataset["num_classes"],
+        "input_shape": list(dataset["input_shape"]),
+    }
+    write_json(artifacts_dir / "data_summary.json", summary)
+    logger.info("Saved data summary to %s", artifacts_dir / "data_summary.json")
     return 0
