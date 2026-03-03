@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from h2t.config import apply_overrides, deep_merge, load_config
+from h2t.bench.android import benchmark_android
 from h2t.bench.host import benchmark_host
 from h2t.constants import DEFAULT_CONFIG_PATH
 from h2t.data.registry import load_dataset
@@ -21,8 +22,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--set", action="append", default=[], help="Override key=value (dot paths)")
 
     subparsers = parser.add_subparsers(dest="command")
-    for name in ("data", "train", "export", "bench-host", "bench-android", "report", "run-all"):
-        subparsers.add_parser(name)
+    subparsers.add_parser("data")
+    subparsers.add_parser("train")
+    subparsers.add_parser("export")
+    subparsers.add_parser("bench-host")
+    android = subparsers.add_parser("bench-android")
+    android.add_argument("--serial", default=None, help="ADB device serial")
+    android.add_argument("--benchmark-bin", default=None, help="Path to benchmark_model binary on host")
+    android.add_argument("--threads", type=int, default=None, help="CPU threads")
+    android.add_argument("--use-nnapi", action="store_true", default=None, help="Enable NNAPI")
+    android.add_argument("--repeat", type=int, default=None, help="Repeat count")
+    android.add_argument("--cooldown-s", type=float, default=None, help="Cooldown in seconds")
+    android.add_argument("--warmup-runs", type=int, default=None, help="Warmup runs")
+    android.add_argument("--num-runs", type=int, default=None, help="Benchmark runs per repeat")
+    subparsers.add_parser("report")
+    subparsers.add_parser("run-all")
     return parser
 
 
@@ -51,7 +65,19 @@ def main(argv: list[str] | None = None) -> int:
         return _run_export(config, logger)
     if command == "bench-host":
         return _run_bench_host(config, logger)
-    if command in {"bench-android", "report", "run-all"}:
+    if command == "bench-android":
+        overrides = {
+            "serial": args.serial,
+            "benchmark_bin": args.benchmark_bin,
+            "threads": args.threads,
+            "use_nnapi": args.use_nnapi,
+            "repeat": args.repeat,
+            "cooldown_s": args.cooldown_s,
+            "warmup_runs": args.warmup_runs,
+            "num_runs": args.num_runs,
+        }
+        return _run_bench_android(config, logger, overrides)
+    if command in {"report", "run-all"}:
         logger.info("Command %s is scaffolded and will be implemented in subsequent milestones.", command)
         return 0
     return 0
@@ -97,6 +123,15 @@ def _run_bench_host(config: dict[str, Any], logger) -> int:
     train_result = train_pipeline(config, dataset, logger)
     manifest = export_tflite_variants(config, dataset, train_result, logger)
     benchmark_host(config, dataset, manifest, logger)
+    return 0
+
+
+def _run_bench_android(config: dict[str, Any], logger, overrides: dict[str, Any]) -> int:
+    dataset = _load_data(config, logger)
+    _write_data_summary(config, dataset, logger)
+    train_result = train_pipeline(config, dataset, logger)
+    manifest = export_tflite_variants(config, dataset, train_result, logger)
+    benchmark_android(config, manifest, logger, cli_overrides=overrides)
     return 0
 
 
