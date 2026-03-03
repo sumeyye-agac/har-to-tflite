@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "har-to-tflite"
+version = "0.1.0"
+description = "HAR to TFLite pipeline with robust fallbacks"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+  { name = "Sumeyye Agac" }
+]
+dependencies = [
+  "numpy>=1.24",
+  "PyYAML>=6.0"
+]
+
+[project.optional-dependencies]
+ml = [
+  "tensorflow>=2.13"
+]
+
+[project.scripts]
+h2t = "h2t.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

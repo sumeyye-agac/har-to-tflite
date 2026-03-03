@@ -1,0 +1,42 @@
+seed: 1337
+paths:
+  data_dir: data
+  artifacts_dir: artifacts
+  results_dir: results
+
+dataset:
+  name: uci_har
+  force_download: false
+  synthetic_fallback: true
+
+model:
+  name: tiny_cnn
+  teacher_name: teacher_cnn
+  learning_rate: 0.001
+
+training:
+  epochs: 3
+  batch_size: 64
+  validation_split: 0.1
+  train_teacher: false
+
+export:
+  representative_samples: 128
+  prefer_full_int8: true
+
+bench:
+  host:
+    enabled: true
+    threads: 1
+    warmup_runs: 5
+    num_runs: 20
+  android:
+    enabled: true
+    serial: ""
+    benchmark_bin: ""
+    threads: 1
+    use_nnapi: false
+    repeat: 3
+    cooldown_s: 1.0
+    warmup_runs: 5
+    num_runs: 30

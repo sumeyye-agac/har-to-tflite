@@ -1,0 +1,35 @@
+seed: 123
+paths:
+  data_dir: data
+  artifacts_dir: artifacts
+  results_dir: results
+
+dataset:
+  name: uci_har
+  force_download: false
+  synthetic_fallback: true
+  synthetic_samples:
+    train: 384
+    test: 96
+
+training:
+  epochs: 1
+  batch_size: 32
+  validation_split: 0.1
+  train_teacher: false
+
+export:
+  representative_samples: 32
+
+bench:
+  host:
+    enabled: true
+    threads: 1
+    warmup_runs: 2
+    num_runs: 5
+  android:
+    enabled: true
+    repeat: 1
+    cooldown_s: 0.2
+    warmup_runs: 1
+    num_runs: 5

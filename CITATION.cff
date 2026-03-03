@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+title: har-to-tflite
+message: "If you use this project, please cite it using this metadata."
+type: software
+authors:
+  - family-names: Agac
+    given-names: Sumeyye
+repository-code: "https://github.com/sumeyye-agac/har-to-tflite"
+license: MIT
+version: 0.1.0
