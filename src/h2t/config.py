@@ -25,6 +25,49 @@ def load_config(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def validate_config(config: dict[str, Any]) -> None:
+    required_top = ("paths", "dataset", "training", "export", "bench")
+    for key in required_top:
+        if key not in config or not isinstance(config[key], dict):
+            raise ValueError(f"Missing or invalid config section: {key}")
+
+    paths = config["paths"]
+    for key in ("data_dir", "artifacts_dir", "results_dir"):
+        value = paths.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"paths.{key} must be a non-empty string")
+
+    training = config["training"]
+    _require_positive_int(training, "epochs")
+    _require_positive_int(training, "batch_size")
+
+    export = config["export"]
+    _require_positive_int(export, "representative_samples")
+
+    host_bench = config["bench"].get("host", {})
+    _require_non_negative_int(host_bench, "warmup_runs")
+    _require_positive_int(host_bench, "num_runs")
+    _require_positive_int(host_bench, "threads")
+
+    android_bench = config["bench"].get("android", {})
+    _require_positive_int(android_bench, "repeat")
+    _require_non_negative_int(android_bench, "warmup_runs")
+    _require_positive_int(android_bench, "num_runs")
+    _require_positive_int(android_bench, "threads")
+
+
+def _require_positive_int(section: dict[str, Any], key: str) -> None:
+    value = section.get(key)
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{key} must be a positive integer")
+
+
+def _require_non_negative_int(section: dict[str, Any], key: str) -> None:
+    value = section.get(key)
+    if not isinstance(value, int) or value < 0:
+        raise ValueError(f"{key} must be a non-negative integer")
+
+
 def apply_overrides(config: dict[str, Any], overrides: list[str] | None) -> dict[str, Any]:
     if not overrides:
         return config

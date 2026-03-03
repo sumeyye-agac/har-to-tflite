@@ -8,7 +8,7 @@ from typing import Any
 
 from h2t.bench.android import benchmark_android
 from h2t.bench.host import benchmark_host
-from h2t.config import apply_overrides, deep_merge, load_config
+from h2t.config import apply_overrides, deep_merge, load_config, validate_config
 from h2t.constants import DEFAULT_CONFIG_PATH
 from h2t.data.registry import load_dataset
 from h2t.data.synthetic import generate_synthetic_har
@@ -60,7 +60,9 @@ def load_runtime_config(config_path: str, overrides: list[str]) -> dict[str, Any
     default_cfg = load_config(DEFAULT_CONFIG_PATH)
     user_cfg = load_config(config_path) if Path(config_path).exists() else {}
     merged = deep_merge(default_cfg, user_cfg)
-    return apply_overrides(merged, overrides)
+    validated = apply_overrides(merged, overrides)
+    validate_config(validated)
+    return validated
 
 
 def main(argv: list[str] | None = None) -> int:
