@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from h2t.config import apply_overrides, deep_merge, load_config
+from h2t.bench.host import benchmark_host
 from h2t.constants import DEFAULT_CONFIG_PATH
 from h2t.data.registry import load_dataset
 from h2t.export.tflite_export import export_tflite_variants
@@ -48,7 +49,9 @@ def main(argv: list[str] | None = None) -> int:
         return _run_train(config, logger)
     if command == "export":
         return _run_export(config, logger)
-    if command in {"bench-host", "bench-android", "report", "run-all"}:
+    if command == "bench-host":
+        return _run_bench_host(config, logger)
+    if command in {"bench-android", "report", "run-all"}:
         logger.info("Command %s is scaffolded and will be implemented in subsequent milestones.", command)
         return 0
     return 0
@@ -85,6 +88,15 @@ def _run_export(config: dict[str, Any], logger) -> int:
     _write_data_summary(config, dataset, logger)
     train_result = train_pipeline(config, dataset, logger)
     export_tflite_variants(config, dataset, train_result, logger)
+    return 0
+
+
+def _run_bench_host(config: dict[str, Any], logger) -> int:
+    dataset = _load_data(config, logger)
+    _write_data_summary(config, dataset, logger)
+    train_result = train_pipeline(config, dataset, logger)
+    manifest = export_tflite_variants(config, dataset, train_result, logger)
+    benchmark_host(config, dataset, manifest, logger)
     return 0
 
 
