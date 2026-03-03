@@ -19,9 +19,24 @@ def write_summary(config: dict[str, Any]) -> tuple[Path, Path]:
     export_manifest = _read_json_if_exists(artifacts_dir / "export_manifest.json")
     host_rows = _read_csv_if_exists(results_dir / "bench_host.csv")
     android_rows = _read_csv_if_exists(results_dir / "bench_android.csv")
+    best_host = _best_latency(host_rows)
+    best_android = _best_latency(android_rows)
+    complete = bool(data_summary and train_metrics and export_manifest)
 
     lines = [
         "# har-to-tflite summary",
+        "",
+        "## Run status",
+        f"- complete_artifacts_present: {complete}",
+        f"- best_host_ms: {best_host if best_host is not None else 'n/a'}",
+        f"- best_android_ms: {best_android if best_android is not None else 'n/a'}",
+        "",
+        "## Artifacts",
+        f"- data_summary.json: {_exists(artifacts_dir / 'data_summary.json')}",
+        f"- train_metrics.json: {_exists(artifacts_dir / 'train_metrics.json')}",
+        f"- export_manifest.json: {_exists(artifacts_dir / 'export_manifest.json')}",
+        f"- bench_host.csv: {_exists(results_dir / 'bench_host.csv')}",
+        f"- bench_android.csv: {_exists(results_dir / 'bench_android.csv')}",
         "",
         "## Dataset",
         f"- source: {data_summary.get('source', 'unknown')}",
@@ -80,3 +95,21 @@ def _read_csv_if_exists(path: Path) -> list[dict[str, Any]]:
         return []
     with path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _best_latency(rows: list[dict[str, Any]]) -> float | None:
+    values: list[float] = []
+    for row in rows:
+        if row.get("status") != "ok":
+            continue
+        try:
+            values.append(float(row.get("mean_ms", 0.0)))
+        except (TypeError, ValueError):
+            continue
+    if not values:
+        return None
+    return round(min(values), 4)
+
+
+def _exists(path: Path) -> bool:
+    return path.exists()
