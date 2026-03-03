@@ -5,10 +5,10 @@ from typing import Any
 
 
 _PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"Inference \\(avg\\):\\s*([0-9]*\\.?[0-9]+)\\s*us", re.IGNORECASE), "us"),
-    (re.compile(r"Average inference timings in us:\\s*([0-9]*\\.?[0-9]+)", re.IGNORECASE), "us"),
-    (re.compile(r"avg\\s*=\\s*([0-9]*\\.?[0-9]+)\\s*(ms|us)", re.IGNORECASE), "dynamic"),
-    (re.compile(r"mean\\s*[:=]\\s*([0-9]*\\.?[0-9]+)\\s*(ms|us)", re.IGNORECASE), "dynamic"),
+    (re.compile(r"Inference \(avg\):\s*([0-9]*\.?[0-9]+)\s*us", re.IGNORECASE), "us"),
+    (re.compile(r"Average inference timings in us:\s*([0-9]*\.?[0-9]+)", re.IGNORECASE), "us"),
+    (re.compile(r"avg\s*=\s*([0-9]*\.?[0-9]+)\s*(ms|us)", re.IGNORECASE), "dynamic"),
+    (re.compile(r"mean\s*[:=]\s*([0-9]*\.?[0-9]+)\s*(ms|us)", re.IGNORECASE), "dynamic"),
 ]
 
 
