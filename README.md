@@ -1,10 +1,13 @@
 # har-to-tflite
 
 [![CI](https://github.com/sumeyye-agac/har-to-tflite/actions/workflows/ci.yml/badge.svg)](https://github.com/sumeyye-agac/har-to-tflite/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
 
 Train a tiny HAR classifier and export reproducible TensorFlow Lite variants (`fp32`, `fp16`, `int8`, `drq`) with host and Android benchmarks.
+
+## Project status
+
+This repository is under active development. APIs, configs, and benchmark outputs may change until the first stable release.
 
 ## Quickstart
 
@@ -116,7 +119,3 @@ PYTHONPATH=. pytest -q
 - Optional distillation flow from teacher to tiny student
 - Better per-op profiling summaries for TFLite backends
 - Device matrix leaderboard export for multi-phone comparisons
-
-## License
-
-MIT.

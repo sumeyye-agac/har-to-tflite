@@ -6,5 +6,4 @@ authors:
   - family-names: Agac
     given-names: Sumeyye
 repository-code: "https://github.com/sumeyye-agac/har-to-tflite"
-license: MIT
 version: 0.1.0
