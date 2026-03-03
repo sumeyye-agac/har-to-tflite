@@ -8,6 +8,7 @@ from h2t.config import apply_overrides, deep_merge, load_config
 from h2t.constants import DEFAULT_CONFIG_PATH
 from h2t.data.registry import load_dataset
 from h2t.logging_utils import setup_logging
+from h2t.training.train import train_pipeline
 from h2t.utils.jsonio import write_json
 from h2t.utils.paths import ensure_dir
 
@@ -42,7 +43,9 @@ def main(argv: list[str] | None = None) -> int:
     command = args.command
     if command == "data":
         return _run_data(config, logger)
-    if command in {"train", "export", "bench-host", "bench-android", "report", "run-all"}:
+    if command == "train":
+        return _run_train(config, logger)
+    if command in {"export", "bench-host", "bench-android", "report", "run-all"}:
         logger.info("Command %s is scaffolded and will be implemented in subsequent milestones.", command)
         return 0
     return 0
@@ -50,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _run_data(config: dict[str, Any], logger) -> int:
     artifacts_dir = ensure_dir(config["paths"]["artifacts_dir"])
-    dataset = load_dataset(config, logger)
+    dataset = _load_data(config, logger)
     summary = {
         "source": dataset["source"],
         "x_train_shape": list(dataset["x_train"].shape),
@@ -61,3 +64,14 @@ def _run_data(config: dict[str, Any], logger) -> int:
     write_json(artifacts_dir / "data_summary.json", summary)
     logger.info("Saved data summary to %s", artifacts_dir / "data_summary.json")
     return 0
+
+
+def _run_train(config: dict[str, Any], logger) -> int:
+    _run_data(config, logger)
+    dataset = _load_data(config, logger)
+    train_pipeline(config, dataset, logger)
+    return 0
+
+
+def _load_data(config: dict[str, Any], logger) -> dict[str, Any]:
+    return load_dataset(config, logger)
