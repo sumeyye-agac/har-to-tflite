@@ -46,7 +46,11 @@ h2t report --config configs/default.yaml
 h2t run-all --config configs/default.yaml
 ```
 
-Legacy aliases are supported: `bench-host`, `bench-android`.
+Extra docs:
+
+- `docs/ARCHITECTURE.md`
+- `CHANGELOG.md`
+
 ## Example output tree
 
 ```text

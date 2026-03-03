@@ -89,13 +89,13 @@ def main(argv: list[str] | None = None) -> int:
         return _run_all(config, logger)
 
     if command == "bench":
-        return _run_bench_command(command, args, config, logger)
+        return _run_bench_command(args, config, logger)
 
     logger.error("Unsupported command: %s", command)
     return 1
 
 
-def _run_bench_command(command: str, args: argparse.Namespace, config: dict[str, Any], logger) -> int:
+def _run_bench_command(args: argparse.Namespace, config: dict[str, Any], logger) -> int:
     if args.bench_command == "host":
         overrides = {"threads": args.threads, "warmup_runs": args.warmup_runs, "num_runs": args.num_runs}
         return _run_bench_host(config, logger, overrides)
@@ -237,9 +237,6 @@ def _load_data_with_failsafe(config: dict[str, Any], logger) -> dict[str, Any]:
         return load_dataset(config, logger)
     except Exception as exc:
         logger.exception("Dataset load failed, switching to synthetic fallback: %s", exc)
-        fallback_cfg = deepcopy(config)
-        fallback_cfg.setdefault("dataset", {})["name"] = "synthetic"
-        fallback_cfg["dataset"]["synthetic_fallback"] = True
         synth = generate_synthetic_har(seed=int(config.get("seed", 1337)), train_samples=512, test_samples=128)
         return {
             "x_train": synth.x_train,
