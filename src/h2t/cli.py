@@ -18,7 +18,7 @@ from h2t.reporting.report import write_summary
 from h2t.training.train import train_pipeline
 from h2t.utils.jsonio import write_json
 from h2t.utils.paths import ensure_dir
-from h2t.utils.reproducibility import write_env_snapshot
+from h2t.utils.reproducibility import write_effective_config, write_env_snapshot, write_git_revision
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -74,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
 
     config = load_runtime_config(args.config, args.set)
     logger = setup_logging(Path(config["paths"]["results_dir"]) / "run.log")
-    _write_env(config)
+    _write_repro_metadata(config, logger)
 
     command = args.command
     if command == "data":
@@ -295,6 +295,11 @@ def _write_stub_bench(config: dict[str, Any], filename: str, reason: str) -> Non
         )
 
 
-def _write_env(config: dict[str, Any]) -> None:
+def _write_repro_metadata(config: dict[str, Any], logger) -> None:
     results_dir = ensure_dir(config["paths"]["results_dir"])
-    write_env_snapshot(results_dir / "env.txt")
+    try:
+        write_env_snapshot(results_dir / "env.txt")
+        write_effective_config(results_dir / "config_effective.yaml", config)
+        write_git_revision(results_dir / "git_rev.txt")
+    except Exception as exc:  # best effort only
+        logger.warning("Failed to write reproducibility metadata: %s", exc)

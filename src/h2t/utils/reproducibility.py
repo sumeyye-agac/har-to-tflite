@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import yaml
 
 
 def set_seed(seed: int) -> None:
@@ -53,3 +54,25 @@ def _pip_freeze() -> str:
         return out.strip()
     except Exception as exc:
         return f"<failed: {exc}>"
+
+
+def write_effective_config(path: str | Path, config: dict) -> Path:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(config, handle, sort_keys=False)
+    return p
+
+
+def write_git_revision(path: str | Path) -> Path:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    rev = "unknown"
+    try:
+        out = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, timeout=5).strip()
+        if out:
+            rev = out
+    except Exception:
+        rev = "unknown"
+    p.write_text(rev + "\n", encoding="utf-8")
+    return p

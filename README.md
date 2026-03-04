@@ -69,6 +69,8 @@ artifacts/
 results/
   run.log
   env.txt
+  config_effective.yaml
+  git_rev.txt
   bench_host.csv
   bench_android.csv
   summary.md
