@@ -20,6 +20,9 @@ dependencies = [
 ml = [
   "tensorflow>=2.13"
 ]
+tflite = [
+  "tflite-runtime"
+]
 
 [project.scripts]
 h2t = "h2t.cli:main"

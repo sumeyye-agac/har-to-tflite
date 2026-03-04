@@ -28,18 +28,17 @@ def benchmark_host(config: dict[str, Any], dataset: dict[str, Any], manifest: di
         logger.warning("No runnable TFLite models found; wrote stub host benchmark csv.")
         return bench_path
 
-    try:
-        import tensorflow as tf
-    except Exception as exc:
-        rows.append(_stub_row("none", f"tensorflow_unavailable: {exc}"))
+    interpreter_cls, runtime_name, runtime_error = _resolve_interpreter_runtime()
+    if interpreter_cls is None:
+        rows.append(_stub_row("none", f"interpreter_unavailable: {runtime_error}"))
         _write_rows(bench_path, rows)
-        logger.warning("TensorFlow unavailable for host benchmark; wrote stub csv.")
+        logger.warning("No host interpreter runtime available; wrote stub csv.")
         return bench_path
 
     x_test = dataset["x_test"]
     for variant, model_path in runnable:
         try:
-            interpreter = tf.lite.Interpreter(model_path=str(model_path), num_threads=threads)
+            interpreter = interpreter_cls(model_path=str(model_path), num_threads=threads)
             interpreter.allocate_tensors()
             input_detail = interpreter.get_input_details()[0]
             input_idx = input_detail["index"]
@@ -69,7 +68,7 @@ def benchmark_host(config: dict[str, Any], dataset: dict[str, Any], manifest: di
                     "p90_ms": round(float(np.percentile(timings_ms, 90)), 4),
                     "num_runs": len(timings_ms),
                     "threads": threads,
-                    "reason": "",
+                    "reason": f"runtime={runtime_name}",
                 }
             )
         except Exception as exc:  # pragma: no cover
@@ -113,6 +112,27 @@ def _stub_row(variant: str, reason: str) -> dict[str, Any]:
         "threads": 0,
         "reason": reason,
     }
+
+
+def _resolve_interpreter_runtime():
+    tf_error = ""
+    try:
+        import tensorflow as tf
+
+        return tf.lite.Interpreter, "tensorflow", ""
+    except Exception as exc:  # pragma: no cover - environment dependent
+        tf_error = str(exc)
+
+    tr_error = ""
+    try:
+        from tflite_runtime.interpreter import Interpreter
+
+        return Interpreter, "tflite-runtime", ""
+    except Exception as exc:  # pragma: no cover - environment dependent
+        tr_error = str(exc)
+
+    reason = f"tensorflow={tf_error}; tflite_runtime={tr_error}"
+    return None, "none", reason
 
 
 def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:

@@ -47,6 +47,12 @@ h2t report --config configs/default.yaml
 h2t run-all --config configs/default.yaml
 ```
 
+Host benchmark runtime resolution order:
+
+1. `tensorflow.lite.Interpreter`
+2. `tflite_runtime.interpreter.Interpreter`
+3. Stub CSV with reason when neither is available
+
 Extra docs:
 
 - `docs/ARCHITECTURE.md`
