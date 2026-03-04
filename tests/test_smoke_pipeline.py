@@ -44,3 +44,5 @@ def test_smoke_pipeline_runs_offline(tmp_path: Path) -> None:
     assert rc == 0
     assert (tmp_path / "results" / "summary.md").exists()
     assert (tmp_path / "results" / "leaderboard.csv").exists()
+    assert (tmp_path / "results" / "config_effective.yaml").exists()
+    assert (tmp_path / "results" / "git_rev.txt").exists()
