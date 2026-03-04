@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from h2t.bench.parse_benchmark_output import parse_android_benchmark_output
+from h2t.utils.jsonio import write_json
 from h2t.utils.paths import ensure_dir
 from h2t.utils.subprocess_utils import run_command
 
@@ -22,6 +23,7 @@ def benchmark_android(
 ) -> Path:
     results_dir = ensure_dir(config["paths"]["results_dir"])
     bench_path = results_dir / "bench_android.csv"
+    device_info_path = results_dir / "android_device_info.json"
     raw_dir = ensure_dir(results_dir / "android_raw")
     overrides = cli_overrides or {}
     android_cfg = dict(config.get("bench", {}).get("android", {}))
@@ -39,7 +41,9 @@ def benchmark_android(
     rows: list[dict[str, Any]] = []
     adb = shutil.which("adb")
     if not adb:
-        rows.append(_stub_row("none", "adb_missing"))
+        device_info = {"status": "stub", "reason": "adb_missing"}
+        write_json(device_info_path, device_info)
+        rows.append(_attach_device_columns(_stub_row("none", "adb_missing"), device_info, device_info_path.name))
         _write_rows(bench_path, rows)
         logger.warning("ADB is not installed; wrote stub android benchmark csv.")
         return bench_path
@@ -49,15 +53,20 @@ def benchmark_android(
         adb_base.extend(["-s", serial])
 
     if not _device_connected(adb_base):
-        rows.append(_stub_row("none", "no_android_device"))
+        device_info = {"status": "stub", "reason": "no_android_device"}
+        write_json(device_info_path, device_info)
+        rows.append(_attach_device_columns(_stub_row("none", "no_android_device"), device_info, device_info_path.name))
         _write_rows(bench_path, rows)
         logger.warning("No Android device detected; wrote stub android benchmark csv.")
         return bench_path
 
+    device_info = _collect_device_info(adb_base, serial)
+    write_json(device_info_path, device_info)
+
     device_bin = "/data/local/tmp/benchmark_model"
     local_bin = _resolve_benchmark_bin(benchmark_bin)
     if not local_bin:
-        rows.append(_stub_row("none", "benchmark_binary_missing"))
+        rows.append(_attach_device_columns(_stub_row("none", "benchmark_binary_missing"), device_info, device_info_path.name))
         _write_rows(bench_path, rows)
         logger.warning("benchmark_model binary not found; wrote stub android benchmark csv.")
         return bench_path
@@ -65,7 +74,13 @@ def benchmark_android(
     push_bin = run_command(adb_base + ["push", local_bin, device_bin], timeout=60)
     run_command(adb_base + ["shell", "chmod", "+x", device_bin], timeout=30)
     if push_bin.code != 0:
-        rows.append(_stub_row("none", f"benchmark_binary_push_failed: {push_bin.stderr.strip()}"))
+        rows.append(
+            _attach_device_columns(
+                _stub_row("none", f"benchmark_binary_push_failed: {push_bin.stderr.strip()}"),
+                device_info,
+                device_info_path.name,
+            )
+        )
         _write_rows(bench_path, rows)
         logger.warning("Failed to push benchmark binary; wrote stub csv.")
         return bench_path
@@ -73,7 +88,7 @@ def benchmark_android(
     variants = manifest.get("variants", {})
     runnable = [(name, Path(info["path"])) for name, info in variants.items() if info.get("status") == "ok" and info.get("path")]
     if not runnable:
-        rows.append(_stub_row("none", "no_tflite_models_available"))
+        rows.append(_attach_device_columns(_stub_row("none", "no_tflite_models_available"), device_info, device_info_path.name))
         _write_rows(bench_path, rows)
         return bench_path
 
@@ -81,7 +96,13 @@ def benchmark_android(
         device_model = f"/data/local/tmp/{local_model.name}"
         push_model = run_command(adb_base + ["push", str(local_model), device_model], timeout=60)
         if push_model.code != 0:
-            rows.append(_stub_row(variant, f"model_push_failed: {push_model.stderr.strip()}"))
+            rows.append(
+                _attach_device_columns(
+                    _stub_row(variant, f"model_push_failed: {push_model.stderr.strip()}"),
+                    device_info,
+                    device_info_path.name,
+                )
+            )
             continue
 
         repeat_values: list[float] = []
@@ -108,21 +129,31 @@ def benchmark_android(
 
         if repeat_values:
             rows.append(
-                {
-                    "variant": variant,
-                    "status": "ok",
-                    "mean_ms": round(float(np.mean(repeat_values)), 4),
-                    "p50_ms": round(float(np.percentile(repeat_values, 50)), 4),
-                    "p90_ms": round(float(np.percentile(repeat_values, 90)), 4),
-                    "runs": len(repeat_values),
-                    "threads": threads,
-                    "use_nnapi": use_nnapi,
-                    "reason": "",
-                }
+                _attach_device_columns(
+                    {
+                        "variant": variant,
+                        "status": "ok",
+                        "mean_ms": round(float(np.mean(repeat_values)), 4),
+                        "p50_ms": round(float(np.percentile(repeat_values, 50)), 4),
+                        "p90_ms": round(float(np.percentile(repeat_values, 90)), 4),
+                        "runs": len(repeat_values),
+                        "threads": threads,
+                        "use_nnapi": use_nnapi,
+                        "reason": "",
+                    },
+                    device_info,
+                    device_info_path.name,
+                )
             )
         else:
             reason = parse_android_benchmark_output(last_output).get("reason", "parse_failed")
-            rows.append(_stub_row(variant, reason, threads=threads, use_nnapi=use_nnapi))
+            rows.append(
+                _attach_device_columns(
+                    _stub_row(variant, reason, threads=threads, use_nnapi=use_nnapi),
+                    device_info,
+                    device_info_path.name,
+                )
+            )
 
     _write_rows(bench_path, rows)
     logger.info("Saved android benchmark csv to %s", bench_path)
@@ -162,11 +193,54 @@ def _stub_row(variant: str, reason: str, threads: int = 0, use_nnapi: bool = Fal
     }
 
 
+def _collect_device_info(adb_base: list[str], serial: str) -> dict[str, Any]:
+    keys = {
+        "ro.product.model": "model",
+        "ro.product.manufacturer": "manufacturer",
+        "ro.build.version.release": "android_release",
+        "ro.build.version.sdk": "android_sdk",
+        "ro.product.cpu.abi": "cpu_abi",
+    }
+    info = {"status": "ok", "serial": serial or "", "reason": ""}
+    for prop_key, out_key in keys.items():
+        result = run_command(adb_base + ["shell", "getprop", prop_key], timeout=15)
+        value = (result.stdout or "").strip()
+        info[out_key] = value if value else "unknown"
+    return info
+
+
+def _attach_device_columns(row: dict[str, Any], device_info: dict[str, Any], info_file: str) -> dict[str, Any]:
+    merged = dict(row)
+    merged["device_info_file"] = info_file
+    merged["device_model"] = device_info.get("model", "unknown")
+    merged["device_manufacturer"] = device_info.get("manufacturer", "unknown")
+    merged["android_release"] = device_info.get("android_release", "unknown")
+    merged["android_sdk"] = device_info.get("android_sdk", "unknown")
+    merged["cpu_abi"] = device_info.get("cpu_abi", "unknown")
+    return merged
+
+
 def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["variant", "status", "mean_ms", "p50_ms", "p90_ms", "runs", "threads", "use_nnapi", "reason"],
+            fieldnames=[
+                "variant",
+                "status",
+                "mean_ms",
+                "p50_ms",
+                "p90_ms",
+                "runs",
+                "threads",
+                "use_nnapi",
+                "reason",
+                "device_info_file",
+                "device_model",
+                "device_manufacturer",
+                "android_release",
+                "android_sdk",
+                "cpu_abi",
+            ],
         )
         writer.writeheader()
         writer.writerows(rows)
