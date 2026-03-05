@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
-      PYTHONPATH: "."
+      PYTHONPATH: "tests/stubs:."
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

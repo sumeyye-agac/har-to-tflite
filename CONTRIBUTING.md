@@ -9,7 +9,7 @@ Please open issues; PRs may be closed and applied manually to keep a single-auth
    - `python -m pip install -e .`
 3. Run validation:
    - `h2t --help`
-   - `PYTHONPATH=. pytest -q`
+   - `PYTHONPATH=tests/stubs:. pytest -q`
 4. Keep commits small and focused (one concern per commit).
 5. Use direct, descriptive commit messages.
 

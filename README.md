@@ -124,7 +124,7 @@ h2t run-all --config configs/default.yaml --set training.epochs=1 --set bench.ho
 
 ```bash
 python -m pip install -e .
-PYTHONPATH=. pytest -q
+PYTHONPATH=tests/stubs:. pytest -q
 ```
 
 ## Roadmap
